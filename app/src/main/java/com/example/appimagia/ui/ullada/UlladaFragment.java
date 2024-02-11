@@ -73,16 +73,19 @@ public class UlladaFragment extends Fragment{
     }
 
     private void initializeCamera() {
-        cameraProviderFuture.addListener(() -> {
-            try {
-                cameraProvider = cameraProviderFuture.get();
-                if (binding != null) {
-                    bindPreview();
+        if (cameraProviderFuture != null) {
+
+            cameraProviderFuture.addListener(() -> {
+                try {
+                    cameraProvider = cameraProviderFuture.get();
+                    if (binding != null) {
+                        bindPreview();
+                    }
+                } catch (ExecutionException | InterruptedException e) {
+                    e.printStackTrace();
                 }
-            } catch (ExecutionException | InterruptedException e) {
-                e.printStackTrace();
-            }
-        }, ContextCompat.getMainExecutor(requireContext()));
+            }, ContextCompat.getMainExecutor(requireContext()));
+        }
     }
 
     private boolean hasCameraPermission() {
