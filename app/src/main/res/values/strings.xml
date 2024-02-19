@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">AppImagIA</string>
-    <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Notifications</string>
+    <string name="title_ullada">Ullada</string>
+    <string name="title_historial">Historial</string>
+    <string name="title_compte">Compte</string>
+    <string name="server_url">http://AppImagIA.com/api</string>
 </resources>

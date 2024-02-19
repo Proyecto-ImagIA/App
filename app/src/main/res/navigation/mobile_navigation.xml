@@ -8,18 +8,18 @@
     <fragment
         android:id="@+id/navigation_home"
         android:name="com.example.appimagia.ui.ullada.UlladaFragment"
-        android:label="@string/title_home"
+        android:label="@string/title_ullada"
         tools:layout="@layout/fragment_ullada" />
 
     <fragment
         android:id="@+id/navigation_dashboard"
         android:name="com.example.appimagia.ui.historial.HistorialFragment"
-        android:label="@string/title_dashboard"
+        android:label="@string/title_historial"
         tools:layout="@layout/fragment_historial" />
 
     <fragment
         android:id="@+id/navigation_notifications"
         android:name="com.example.appimagia.ui.compte.CompteFragment"
-        android:label="@string/title_notifications"
+        android:label="@string/title_compte"
         tools:layout="@layout/fragment_compte" />
 </navigation>
