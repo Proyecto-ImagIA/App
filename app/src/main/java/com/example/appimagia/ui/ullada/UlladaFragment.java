@@ -245,7 +245,7 @@ public class UlladaFragment extends Fragment{
                     Gson gson = new Gson();
                     String json = gson.toJson(requestBody);
 
-                    ///////////////////777
+                    ///////////////////7777
 
                     try {
                         // Crear l'URL i obrir la connexió
