@@ -2,12 +2,15 @@ package com.example.appimagia.ui.ullada;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.speech.tts.TextToSpeech;
 import android.view.LayoutInflater;
@@ -44,6 +47,8 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
@@ -60,10 +65,19 @@ public class UlladaFragment extends Fragment{
     private ImageView imageView;
     private String serverUrl;
     private TextToSpeech t1;
+    // Sensores
     private SensorEventListener sensorListener;
     private float xValue;
     private float yValue;
     private float zValue;
+    private float xValueT;
+    private float yValueT;
+    private float zValueT;
+    private int golpe = 0;
+    private Timer timer;
+    private GolpeSensor golpeSensor;
+    private static final int GOLPE_THRESHOLD = 10;
+    private boolean primerGolpe = false;
 
 
     @Nullable
@@ -77,32 +91,19 @@ public class UlladaFragment extends Fragment{
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-//
-        sensorListener = new SensorEventListener() {
-            @Override
-            public void onSensorChanged(SensorEvent sensorEvent) {
-                // Aquí puedes colocar la lógica para detectar los movimientos del dispositivo
-                // y tomar una foto si se cumple cierta condición.
-                // Por ejemplo:
-                float xValue = sensorEvent.values[0];
-                float yValue = sensorEvent.values[1];
-                float zValue = sensorEvent.values[2];
 
-
-                // Realizar la lógica para detectar el movimiento deseado y tomar la foto
-                /*
-                if () {
-                    capturePhoto();
-                }
-
-                 */
+        // Configurar el sensor de golpes
+        golpeSensor = new GolpeSensor((SensorManager) requireContext().getSystemService(Context.SENSOR_SERVICE));
+        golpeSensor.setOnGolpeListener(() -> {
+            if (!primerGolpe) {
+                primerGolpe = true;
+            } else {
+                capturePhoto(); // Capturar la foto en el segundo golpe
+                primerGolpe = false; // Reiniciar el estado para el próximo par de golpes
             }
+        });
 
-            @Override
-            public void onAccuracyChanged(Sensor sensor, int i) {
-
-            }
-        };
+        golpeSensor.iniciar();
 
         if (hasCameraPermission()) {
             initializeCamera();
@@ -315,7 +316,22 @@ public class UlladaFragment extends Fragment{
     @Override
     public void onResume() {
         super.onResume();
-        //registerSensorListener();
+        registerSensorListener();
+    }
+
+    private void registerSensorListener() {
+        SensorManager sensorManager = (SensorManager) requireContext().getSystemService(Context.SENSOR_SERVICE);
+        Sensor accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        if (accelerometer != null) {
+            sensorManager.registerListener(sensorListener, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        } else {
+            showToast("El dispositivo no tiene acelerómetro");
+        }
+    }
+
+    private void unregisterSensorListener() {
+        SensorManager sensorManager = (SensorManager) requireContext().getSystemService(Context.SENSOR_SERVICE);
+        sensorManager.unregisterListener(sensorListener);
     }
 
     @Override
@@ -324,6 +340,85 @@ public class UlladaFragment extends Fragment{
         if (cameraProvider != null) {
             cameraProvider.unbindAll();
         }
+        golpeSensor.detener();
+
         binding = null;
+    }
+}
+
+class GolpeSensor implements SensorEventListener {
+
+    private static final float GRAVITY_THRESHOLD = 15.0f;
+    private static final long TIME_THRESHOLD = 800;
+
+    private SensorManager sensorManager;
+    private Sensor accelerometer;
+    private boolean golpe1Detectado = false;
+    private long tiempoGolpe1 = 0;
+    private OnGolpeListener onGolpeListener;
+    private Handler handler = new Handler();
+
+    public GolpeSensor(SensorManager sensorManager) {
+        this.sensorManager = sensorManager;
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+    }
+
+    public void setOnGolpeListener(OnGolpeListener listener) {
+        this.onGolpeListener = listener;
+    }
+
+    public void iniciar() {
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    public void detener() {
+        sensorManager.unregisterListener(this);
+        handler.removeCallbacksAndMessages(null);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            float x = event.values[0];
+            float y = event.values[1];
+            float z = event.values[2];
+
+            float aceleracion = (float) Math.sqrt(x * x + y * y + z * z);
+
+            if (aceleracion > GRAVITY_THRESHOLD) {
+                if (!golpe1Detectado) {
+                    golpe1Detectado = true;
+                    tiempoGolpe1 = System.currentTimeMillis();
+
+                    // Programar una tarea para restablecer golpe1Detectado después del tiempo límite
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            golpe1Detectado = false;
+                        }
+                    }, TIME_THRESHOLD);
+                } else {
+                    long tiempoActual = System.currentTimeMillis();
+                    if (tiempoActual - tiempoGolpe1 <= TIME_THRESHOLD) {
+                        // Se han detectado dos golpes dentro del tiempo límite
+                        if (onGolpeListener != null) {
+                            onGolpeListener.onDosGolpes();
+                        }
+                        // Restablecer estado
+                        golpe1Detectado = false;
+                        tiempoGolpe1 = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // No es relevante para este ejemplo
+    }
+
+    public interface OnGolpeListener {
+        void onDosGolpes();
     }
 }
