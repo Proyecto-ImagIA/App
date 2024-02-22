@@ -9,8 +9,8 @@
 
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
-        android:layout_width="151dp"
-        android:layout_height="218dp"
+        android:layout_width="415dp"
+        android:layout_height="588dp"
         app:layout_constraintBottom_toTopOf="@id/guideline"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
