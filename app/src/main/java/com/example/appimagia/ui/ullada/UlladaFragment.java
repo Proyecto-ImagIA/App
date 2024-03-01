@@ -4,6 +4,8 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -13,6 +15,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.speech.tts.TextToSpeech;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -35,7 +38,6 @@ import androidx.fragment.app.Fragment;
 import com.example.appimagia.R;
 import com.example.appimagia.databinding.FragmentUlladaBinding;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.gson.Gson;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -44,16 +46,15 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
@@ -62,11 +63,11 @@ public class UlladaFragment extends Fragment{
     private static final int CAMERA_REQUEST_CODE = 10;
     private FragmentUlladaBinding binding;
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
-    private Preview preview;
     private ProcessCameraProvider cameraProvider;
+    private ImageCapture imageCapture = new ImageCapture.Builder().build();
+    private Preview preview;
     private Camera camera;
     private Button btnCapture;
-    private ImageCapture imageCapture = new ImageCapture.Builder().build();
     private ImageView imageView;
     private String serverUrl;
     private TextToSpeech t1;
@@ -88,7 +89,7 @@ public class UlladaFragment extends Fragment{
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = FragmentUlladaBinding.inflate(inflater, container, false);
-        serverUrl = getString(R.string.server_url);
+        serverUrl = getString(R.string.server_url)+"/data";
         return binding.getRoot();
     }
 
@@ -120,6 +121,7 @@ public class UlladaFragment extends Fragment{
             public void onInit(int status) {
                 if(status != TextToSpeech.ERROR) {
                     t1.setLanguage(Locale.UK);
+                    //t1.setLanguage(new Locale("es", "ES"));
                 }
             }
         });
@@ -207,6 +209,22 @@ public class UlladaFragment extends Fragment{
         }
     }
 
+    private void compressImage(String imagePath) {
+        File imageFile = new File(imagePath);
+        try {
+            Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 50, outputStream); // Ajusta la calidad de compresión según tus necesidades
+            FileOutputStream fileOutputStream = new FileOutputStream(imageFile);
+            fileOutputStream.write(outputStream.toByteArray());
+            fileOutputStream.flush();
+            fileOutputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     private void handleImageCaptureSuccess(String imagePath) {
         Toast.makeText(requireContext(), imagePath, Toast.LENGTH_SHORT).show();
         binding.imageView3.setImageURI(Uri.parse(imagePath));
@@ -220,8 +238,19 @@ public class UlladaFragment extends Fragment{
     private void sendImageToServer(String imagePath) {
         new Thread(() -> {
             try {
+                //compressImage(imagePath);
                 ContentResolver contentResolver = requireContext().getContentResolver();
                 InputStream inputStream = contentResolver.openInputStream(Uri.parse(imagePath));
+
+                ////////////////////////////////////////////////////////////
+                //Bitmap capturedImage = BitmapFactory.decodeFile(imagePath);
+                //int newWidth = 400; // ancho deseado
+                //int newHeight = 300; // alto deseado
+                //Bitmap compressedBitmap = Bitmap.createScaledBitmap(capturedImage, newWidth, newHeight, true);
+//
+                //String compressedImageBase64 = bitmapToBase64(compressedBitmap);
+
+                ////////////////////////////////////////////////////////////
 
                 if (inputStream != null) {
                     String fotoBase64 = inputStreamToBase64(inputStream);
@@ -230,10 +259,7 @@ public class UlladaFragment extends Fragment{
                     String data = "{" +
                             "\"type\": \"imatge\"" +
                             ",\"prompt\":\"Que ves en la foto?\"" +
-                            //",\"images\": \"" + "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAABuwAAAbsBOuzj4gAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAcISURBVHic7ZtLaF3XFYa/tSXfh23FBKdGNiWlGaTFxMnAJNDGkk1kJ7RNC4YSUEkCfUJS2kHHnSSDTjpoB4GO2kIxaYtnHkRtU4Osh0OhHiQDk6SPxIkxBuOU2paudK90VgfnSNfnnP06RweJNPlH96691tr/+u/a+zyvqCqfZJidJrDT+FSAnSaw0xitHTkjbfa2v43yLOgXQRLgMso5Wqu/4kvaa44m8IZ06bdfQPgGcBjUgLyNcIY7q7/lK7paJ63U2gQXug+Q6F+Bzzs8rqM8z/GV1+uQKuFC5xTC74Bxh8d7GDnJsd6/q6auLsBC50ESzgOfDXj2SOSrnOjNViWVw2z3BEZfA7oBz6sYpji28m6V9NUEmG8fRuU87l+iiDtgnmJy+WIVUpuY2/1lSP4M7I2MuI7oFBOrl2OniN8EF/ccQmWWUvHydxI5hcokwp8KUXshmeFC69HoeTZwofUoJDOUi38d5DjIFOjfCmPjqMyyuOdQ7DTxHTDffRXV6YL1L0yuPJWzzLV/DfKdvJveZND+AlO3bkbNdf6e/exafQdkfz6NnuH46nP5+TrngK/nbCK/Z6L3rZip4jpgrjtpKb6HkRdKvv3+T4CreaPsZ1f/p1FzAalvoXi4xkj/xyXfNfkRsJyzqU4z152MmSoswFkZAX2lPKAvWXfdk/pflB9YMr3IQveB4Hypz4uWke9zTP9Tsj7Ru4LqSxZ+r6Tc/QgLcKD9Q+BI3igfcV//F86Y4yszwFsFa4uEnwXnS31aBetbTK685oz5TP+XIB8VrEcy7l74BViQexFeLg/oWQ5rP5D7N5a4Z5hvPeaMmG89BvpMXK67cFj7oGdLduFlFuReX6hfgPX2s8C+8oC86o0DGLTOAEWRBDU/d8akY1Kw9rNcAVg57ctqcCK0BL5rsX3I5Mp8kM/UrZso5ywjk8x1nyhZU1t541LORR09Uk4fWkZsNWzCLcBC6yjCIxZCf4DIY6fRP1rtmjwXZfPlKCfQlFsBwiMstI46KTrzJeZ7VrtI8WTHg9YFoCyWyGlmpL35fUbaiJy2JNAsRxxc3Fy14BLgDekCxeM+wBorK8WzLzcmbt9AsZ2W7mNP62ub39LP5b1GuczE7RvR86Xc1iwj01lNJdgF6He+aSWEvMmTuhRNCECYtdpVpq2fY2JdeFKXQN60jOzLairBLoDR5+0z6GIlQgCis3Y7T7MoYyzKGMLTlWK9cHB01FQW4JLsRpmw59aF6oQc+wB0WO+cZr1zGujYZqu0/jejHByVCS7J7qK5LMByewJol+wAo6PVO2Di9g2ED6xjotNI6RojG+ODSut/A26O7ay2HMoCKKccCa7z+NK1yoRS/MNqVU6inKwUE0LK8bpjvlJtNgEchLTy7aa7cv7TMTKK676kOyZmQjtXS215AS6OHUB42BFcXwBqFVNfABdX4WEujh2425QXYNCfonwuvuH6Xm1CotWLqROzCSdXyWoceubjnOsfoL4ApsavWSdmCDfXQo15AVRy6hQC6y+BQf9f2A+FLmgWUw8+roUahwLM3nMfcL87qdTvgBO6Quk2mRdXs5h68HO9P6s1dR3aBw95ggY83qtSgA1VWnor7U/GdeB2GNY6FED0iNU3xRXQZEukpEJRVXyt0AS44s4/rHUogCne98uhfvtvIKmwq1fxdcO3EVoEUPUtga2cA2ygypldvbPAPDwboRaXgAiIRwDdegds6xIAP2d5KK15Q4DZzueAMXeuBjpgT4XDWhVfF/ycx7KaMwFGve0P2kAHHNVlIOZi6lrmuzWEOGc1m8zZtwHCemfrAqQT2S+LK/tEIMQ5qzkVIOFBj+ut6IeaIYjcacQnBinnW87xrGaTTXrQk+r9RggBKOH7iTE+8XjfOZLVvHEY9AlQfiBZGxJRXIxPNHzccwL4XijY+oa0AY3Y3GJ84uHLdQjAcEl2AcVn8bFJqkEi2jvGJx4+7vu5JLsMS91xnDdBAGnwF5GI9o7xiZ7Py11Y6o4bZM23/kGluff9NIlYAhE+0fMFuMvaQQPeIwA0ugS2uQOC3CVCAJHmBEgiiovxiUWQe4wATbakJBEdEOETiyB3OWhQ9b/02GQHSMRyivGJni/AXXXcIOK+CgTQBglt9xIIcRcZMyTqfwdXm+wAE7EEInxiEeKeaNdgrE9mhzAN7gHJWjhXjE8sQtwNHYMG3sJu8jzARPy6MT6xCHFXugbU3wFJg0tgZCRcXIxPLILctWPA/u7MkNB6cwIMlsO5YnxiEeQuXYP97Ywh1hvsgLGIC50Yn1iEuXdGCf0TY9Q0J8BRHeC78Goao2aZxPtIMqID1kaavD7fXoS5dwyhDugufXwFCHOP6IBeg2eC240w9069v839H+ET/8/RTwXYaQI7jf8B+qhwWQaWV0IAAAAASUVORK5CYII=\"}";
-                            ",\"images\": \"" + fotoBase64+"\"}";
-
-                    //showToast(fotoBase64);
+                            ",\"imatge\": \"" + fotoBase64+"\"}";
 
                     URL url = new URL(serverUrl);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -254,6 +280,14 @@ public class UlladaFragment extends Fragment{
             }
         }).start();
     }
+
+    private String bitmapToBase64(Bitmap bitmap) {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 50, byteArrayOutputStream);
+        byte[] byteArray = byteArrayOutputStream.toByteArray();
+        return Base64.encodeToString(byteArray, Base64.DEFAULT);
+    }
+
 
     private void handleServerResponse(HttpURLConnection conn, JSONObject data) throws IOException, JSONException {
         int responseCode = conn.getResponseCode();
@@ -295,7 +329,7 @@ public class UlladaFragment extends Fragment{
             t1.speak(message, TextToSpeech.QUEUE_FLUSH, null);
         }
     }
-
+/*
     private String inputStreamToBase64(InputStream inputStream) {
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -315,6 +349,27 @@ public class UlladaFragment extends Fragment{
         }
         return null;
     }
+
+ */
+private String inputStreamToBase64(InputStream inputStream) {
+    try {
+        Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+        int newWidth = bitmap.getWidth() / 2;
+        int newHeight = bitmap.getHeight() / 2;
+        Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 15, byteArrayOutputStream);
+        byte[] imageBytes = byteArrayOutputStream.toByteArray();
+
+        return Base64.encodeToString(imageBytes, Base64.NO_WRAP);
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return null;
+}
+
 
     private void showToast(final String message) {
         requireActivity().runOnUiThread(new Runnable() {
@@ -366,43 +421,10 @@ public class UlladaFragment extends Fragment{
         binding = null;
     }
 }
-class RequestBody {
-    private String model;
-    private String prompt;
-    private String[] imatges;
-
-    // getters i setters
-
-    public String getModel() {
-        return model;
-    }
-
-    public void setModel(String model) {
-        this.model = model;
-    }
-
-    public String getPrompt() {
-        return prompt;
-    }
-
-    public void setPrompt(String prompt) {
-        this.prompt = prompt;
-    }
-
-    public String[] getImatges() {
-        return imatges;
-    }
-
-    public void setImatges(String[] imatges) {
-        this.imatges = imatges;
-    }
-}
 
 class GolpeSensor implements SensorEventListener {
-
     private static final float GRAVITY_THRESHOLD = 15.0f;
     private static final long TIME_THRESHOLD = 800;
-
     private SensorManager sensorManager;
     private Sensor accelerometer;
     private boolean golpe1Detectado = false;
@@ -442,7 +464,6 @@ class GolpeSensor implements SensorEventListener {
                     golpe1Detectado = true;
                     tiempoGolpe1 = System.currentTimeMillis();
 
-                    // Programar una tarea para restablecer golpe1Detectado despuÃ©s del tiempo lÃ­mite
                     handler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
@@ -452,7 +473,6 @@ class GolpeSensor implements SensorEventListener {
                 } else {
                     long tiempoActual = System.currentTimeMillis();
                     if (tiempoActual - tiempoGolpe1 <= TIME_THRESHOLD) {
-                        // Se han detectado dos golpes dentro del tiempo lÃ­mite
                         if (onGolpeListener != null) {
                             onGolpeListener.onDosGolpes();
                         }
@@ -467,7 +487,6 @@ class GolpeSensor implements SensorEventListener {
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // No es relevante para este ejemplo
     }
 
     public interface OnGolpeListener {
