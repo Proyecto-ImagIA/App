@@ -1,6 +1,7 @@
 package com.example.appimagia.ui.compte;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,12 +20,13 @@ import com.example.appimagia.R;
 import com.example.appimagia.databinding.FragmentCompteBinding;
 import com.google.gson.Gson;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -56,7 +58,7 @@ public class CompteFragment extends Fragment {
         editTextPhone = root.findViewById(R.id.editTextPhone);
         editTextPassword = root.findViewById(R.id.editTextPassword);
         buttonSend = root.findViewById(R.id.buttonSend);
-        serverUrl = getString(R.string.server_url)+"/api/user/register";
+        serverUrl = getString(R.string.server_url);
 
         buttonSend.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -69,7 +71,16 @@ public class CompteFragment extends Fragment {
     }
 
     private void enviarCredenciales() {
-        //mostrarDialogo();
+        String x = "{\"data\":{\"pla\":\"Free\",\"telefon\":\"642807459\",\"codi_validacio\":\"8617\",\"validat\":false,\"nickname\":\"juanFinal2\",\"tos\":false,\"contrasenya\":\"dsadasda\",\"id\":1,\"email\":\"daskdkas\"},\"apiKey\":\"27b58217-7c05-4db9-a8a1-5752e7206aad\",\"message\":\"Usuari validat amb èxit\",\"status\":\"OK\"}";
+
+        guardarArchivoJson(getContext(),x,"key.json");
+        if (archivoExiste("key.json")){
+            Log.i("INFO","EXISTTTTTTE");
+        }else {
+            Log.i("INFO","NOOOOOOOOOOOOOOOOOOOEXISTTTTTTE");
+        }
+
+        //
         String nickname = editTextNickname.getText().toString();
         String email = editTextEmail.getText().toString();
         String telefon = editTextPhone.getText().toString();
@@ -99,7 +110,7 @@ public class CompteFragment extends Fragment {
                             ",\"contrasenya\":\""+password+"\"" +
                             ",\"telefon\": \""+ telefon+"\"}";
 
-                    URL url = new URL(serverUrl);
+                    URL url = new URL(serverUrl+"/api/user/register");
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
                     conn.setRequestMethod("POST");
@@ -137,8 +148,14 @@ public class CompteFragment extends Fragment {
 
         if (responseCode == HttpURLConnection.HTTP_OK) {
 
-            showToast("OKKKKK");
             //mostrarDialogo();
+
+            requireActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    mostrarDialogo();
+                }
+            });
 
             /*
             InputStream inputStreamServer = conn.getInputStream();
@@ -168,7 +185,6 @@ public class CompteFragment extends Fragment {
             //readMessageAloud(mensajeCompleto);
              */
         } else {
-
             showToast("Error en la solicitud al servidor: " + responseCode);
         }
         conn.disconnect();
@@ -189,23 +205,28 @@ Almacena KEY
         conn.disconnect();
     }
 
-
-
-    /*
     private void mostrarDialogo() {
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
         LayoutInflater inflater = requireActivity().getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_sms, null);
-        builder.setView(dialogView);
 
-        EditText editTextSMS = dialogView.findViewById(R.id.editTextSMS);
+        final EditText editTextSMS = dialogView.findViewById(R.id.editTextSMS);
+        builder.setView(dialogView);
 
         builder.setMessage("Escribe tu mensaje:");
         builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 String smsText = editTextSMS.getText().toString();
-                // Aquí puedes hacer algo con el texto del SMS
+
+                String phone = editTextPhone.getText().toString();
+
+                VerificarBody vb= new VerificarBody();
+                vb.setCode(smsText);
+                vb.setPhone(phone);
+
+                enviarSMS(phone,smsText);
+
                 dialog.dismiss();
             }
         });
@@ -213,7 +234,98 @@ Almacena KEY
         AlertDialog dialog = builder.create();
         dialog.show();
     }
-*/
+
+
+    private void enviarSMS(String phone, String code) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Construir el objeto JSON para enviar al servidor
+                    JSONObject jsonBody = new JSONObject();
+                    jsonBody.put("phone", phone);
+                    jsonBody.put("code", code);
+
+                    // Establecer la conexión con el servidor
+                    URL url = new URL(serverUrl + "/api/user/validate");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("Content-Type", "application/json");
+                    conn.setDoOutput(true);
+
+                    // Escribir el JSON en la conexión de salida
+                    try (OutputStream outputStream = conn.getOutputStream()) {
+                        outputStream.write(jsonBody.toString().getBytes());
+                    }
+
+                    // Leer la respuesta del servidor
+                    int responseCode = conn.getResponseCode();
+                    if (responseCode == HttpURLConnection.HTTP_OK) {
+                        // Leer la respuesta del servidor
+                        InputStream inputStream = conn.getInputStream();
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                        StringBuilder response = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            response.append(line);
+                        }
+                        reader.close();
+                        inputStream.close();
+
+                        // Registro de información (Log) para mostrar el JSON recibido del servidor
+                        Log.i("Server Response", "JSON recibido del servidor: " + response.toString());
+
+                        // Procesar la respuesta del servidor
+                        String serverResponse = response.toString();
+                        // Hacer algo con la respuesta del servidor aquí
+
+                        //guardarArchivoJson(getContext(),serverResponse,"key.json");
+                        showToast("SMS enviado exitosamente");
+                    } else {
+                        // Manejar el error de respuesta del servidor
+                        showToast("Error al enviar SMS: " + responseCode);
+                    }
+
+                    conn.disconnect();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
+    public static void guardarArchivoJson(Context context, String jsonString, String nombreArchivo) {
+        Log.i("INFO","Intentadodoop");
+        try {
+
+            // Crear un objeto JSON a partir del string recibido
+            JSONObject jsonObject = new JSONObject(jsonString);
+
+            // Convertir el objeto JSON en una cadena formateada
+            String jsonStringFormatted = jsonObject.toString(4);
+
+            // Abrir un archivo en modo de escritura en la carpeta data
+            FileOutputStream fileOutputStream = context.openFileOutput(nombreArchivo, Context.MODE_PRIVATE);
+
+            // Escribir la cadena JSON en el archivo
+            fileOutputStream.write(jsonStringFormatted.getBytes());
+
+            // Cerrar el archivo
+            fileOutputStream.close();
+
+            // Informar que se ha guardado el archivo
+            System.out.println("Archivo JSON guardado correctamente.");
+        } catch (JSONException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean archivoExiste(String nombreArchivo) {
+        File archivo = getContext().getFileStreamPath(nombreArchivo);
+
+        return archivo.exists();
+    }
+
 
 
     private void showToast(final String message) {
@@ -291,3 +403,6 @@ Almacena KEY
         }
     }
 }
+/*
+2024-03-01 18:44:41.798 10464-10849 Server Response         com.example.appimagia                I  JSON recibido del servidor:{"data":{"pla":"Free","telefon":"642807459","codi_validacio":"8617","validat":false,"nickname":"juanFinal2","tos":false,"contrasenya":"dsadasda","id":1,"email":"daskdkas"},"apiKey":"27b58217-7c05-4db9-a8a1-5752e7206aad","message":"Usuari validat amb èxit","status":"OK"}
+ */
