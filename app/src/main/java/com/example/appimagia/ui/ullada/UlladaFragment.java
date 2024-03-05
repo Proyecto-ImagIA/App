@@ -3,6 +3,7 @@ package com.example.appimagia.ui.ullada;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -91,6 +92,11 @@ public class UlladaFragment extends Fragment{
         binding = FragmentUlladaBinding.inflate(inflater, container, false);
         serverUrl = getString(R.string.server_url)+"/data";
         return binding.getRoot();
+    }
+
+    private String obtenerApiKeyDeSharedPreferences() {
+        SharedPreferences sharedPreferences = requireContext().getSharedPreferences("MiArchivo", Context.MODE_PRIVATE);
+        return sharedPreferences.getString("apiKey", "");
     }
 
     @Override
@@ -247,7 +253,6 @@ public class UlladaFragment extends Fragment{
                 //int newWidth = 400; // ancho deseado
                 //int newHeight = 300; // alto deseado
                 //Bitmap compressedBitmap = Bitmap.createScaledBitmap(capturedImage, newWidth, newHeight, true);
-//
                 //String compressedImageBase64 = bitmapToBase64(compressedBitmap);
 
                 ////////////////////////////////////////////////////////////
@@ -265,6 +270,7 @@ public class UlladaFragment extends Fragment{
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setRequestProperty("Content-Type", "application/json");
+                    conn.setRequestProperty("Authorization","Bearer "+obtenerApiKeyDeSharedPreferences());
                     conn.setDoOutput(true);
 
                     JSONObject data1 = new JSONObject(data);

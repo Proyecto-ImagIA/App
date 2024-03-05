@@ -125,16 +125,6 @@ public class CompteFragment extends Fragment {
                     }
 
                     handleServerResponse(conn);
-                    /*
-                    try (OutputStream os = conn.getOutputStream()) {
-                        byte[] input = json.getBytes(StandardCharsets.UTF_8);
-                        os.write(input, 0, input.length);
-                    }
-
-                    int responseCode = conn.getResponseCode();
-
-                    conn.disconnect();
-                    */
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -235,7 +225,6 @@ Almacena KEY
         dialog.show();
     }
 
-
     private void enviarSMS(String phone, String code) {
         new Thread(new Runnable() {
             @Override
@@ -325,8 +314,6 @@ Almacena KEY
 
         return archivo.exists();
     }
-
-
 
     private void showToast(final String message) {
         requireActivity().runOnUiThread(new Runnable() {

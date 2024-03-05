@@ -4,7 +4,7 @@
     <string name="title_historial">Historial</string>
     <string name="title_compte">Compte</string>
     <string name="server_url">https://ams25.ieti.site</string>
-    <!--<string name="server_url">http://192.168.1.112:3000</string>-->192.168.1.100
+    <!--<string name="server_url">http://192.168.1.112:80</string>-->
     <!--<string name="server_url">http://localhost:3000</string>-->
     <!--<string name="server_url">http://192.168.16.34:3000</string>-->
 </resources>
