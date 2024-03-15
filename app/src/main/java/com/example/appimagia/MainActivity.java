@@ -137,6 +137,7 @@ public class MainActivity extends AppCompatActivity {
                             alertDialog.dismiss();
                         } else {
                             showToast("Código de verificación incorrecto");
+
                         }
                     }
                 });
@@ -292,6 +293,7 @@ public class MainActivity extends AppCompatActivity {
                         guardarApiKeyEnSharedPreferences(apiKey);
                         verificado = true;
                     } else {
+
                     }
                     conn.disconnect();
 
@@ -307,7 +309,8 @@ public class MainActivity extends AppCompatActivity {
     private void guardarApiKeyEnSharedPreferences(String apiKey) {
         SharedPreferences sharedPreferences = getSharedPreferences("MiArchivo", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putString("apiKey", apiKey);
+        //editor.putString("apiKey", apiKey);
+        editor.putString("apiKey", phone);
         editor.apply();
     }
 

@@ -1,8 +1,10 @@
 package com.example.appimagia.ui.ullada;
 
+import android.app.AlertDialog;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -324,11 +326,32 @@ public class UlladaFragment extends Fragment{
                 mensajeCompleto += serverMessage;
             }
             readMessageAloud(mensajeCompleto);
+        } else if (responseCode == 429) {
+            getActivity().runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    onCreateDialog(); // Mostrar el diálogo de alerta
+                }
+            });
         } else {
             showToast("Error en la solicitud al servidor: " + responseCode);
+            //readMessageAloud("En la imagen se ve a un duende verde con un sombrero y una banana detrás.");
         }
         conn.disconnect();
     }
+
+    public void onCreateDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setMessage("Se ha quedado sin créditos")
+                .setPositiveButton("Aceptar", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        // Acción al hacer clic en Aceptar
+                        dialog.dismiss(); // Cerrar el diálogo
+                    }
+                });
+        builder.show();
+    }
+
 
     private void readMessageAloud(String message) {
         if (t1 != null) {
@@ -357,25 +380,24 @@ public class UlladaFragment extends Fragment{
     }
 
  */
-private String inputStreamToBase64(InputStream inputStream) {
-    try {
-        Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+    private String inputStreamToBase64(InputStream inputStream) {
+        try {
+            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
 
-        int newWidth = bitmap.getWidth() / 2;
-        int newHeight = bitmap.getHeight() / 2;
-        Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
+            int newWidth = bitmap.getWidth() / 2;
+            int newHeight = bitmap.getHeight() / 2;
+            Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
 
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 15, byteArrayOutputStream);
-        byte[] imageBytes = byteArrayOutputStream.toByteArray();
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 15, byteArrayOutputStream);
+            byte[] imageBytes = byteArrayOutputStream.toByteArray();
 
-        return Base64.encodeToString(imageBytes, Base64.NO_WRAP);
-    } catch (Exception e) {
-        e.printStackTrace();
+            return Base64.encodeToString(imageBytes, Base64.NO_WRAP);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
-    return null;
-}
-
 
     private void showToast(final String message) {
         requireActivity().runOnUiThread(new Runnable() {
